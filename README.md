@@ -1,4 +1,4 @@
-# Checkstyle - Java Code Quality Tool
+ # Checkstyle - Java Code Quality Tool
 
 ![](https://raw.githubusercontent.com/checkstyle/resources/master/img/checkstyle-logos/checkstyle-logo-260x99.png)
 
