@@ -1,51 +1,54 @@
-version: ~> 1.0
-dist: focal
-# this arch is required as is for Partner Queue Solution - DO NOT MODIFY
-arch: ppc64le
 language: java
+jdk:
+  - openjdk11
 
-cache:
-  directories:
-    - ~/.m2
-    - ~/.mvn/wrapper
-    - ~/.ivy2
-
-branches:
-  only:
-    - master
-
-before_install:
-  - sudo apt update
-
-install:
-  - sudo apt install -y xmlstarlet
+services:
+  - docker
 
 jobs:
-  fast_finish: true
   include:
+    # IDEA inspections
+    - name: "Run IntelliJ IDEA inspections"
+      script:
+        - echo "Maven version:" && ./mvnw --version
+        - echo "Java version:" && java --version
+        - echo "IDEA version:" && echo $IDEA_VERSION
+        - mkdir .idea
+        - cp config/intellij-idea-inspections-misc.xml .idea/misc.xml
+        - ./.ci/idea-inspection.sh
+      addons:
+        artifacts:
+          paths:
+            - target/inspection-results
 
-    # this job do deploy maven repository
-    # unit tests (openjdk11)
-    - jdk: openjdk11
-      env:
-        - DESC="tests and deploy"
-        - CMD="./mvnw -e --no-transfer-progress clean integration-test failsafe:verify
-          -DargLine='-Xms1g -Xmx2g'"
-        - DEPLOY="true"
-        - USE_MAVEN_REPO="true"
+    # Maven validation examples
+    - name: "no-exception-lucene-and-others-javadoc"
+      script:
+        - ./.ci/no-exception-test.sh no-exception-lucene-and-others-javadoc
 
-before_script:
-  - java --version
+    - name: "no-error-xwiki"
+      jdk: openjdk18
+      script:
+        - ./.ci/validation.sh no-error-xwiki
 
-script:
-  - ./.ci/travis.sh init-m2-repo
-  - ./.ci/travis.sh run-command "$CMD"
-  - ./.ci/validation.sh git-diff
-  - ./.ci/validation.sh ci-temp-check
-  - ./.ci/travis.sh quarterly-cache-cleanup
-  - sleep 5s
+    - name: "no-exception-spotbugs"
+      script:
+        - ./.ci/validation.sh no-exception-spotbugs
 
-after_success:
-  - ./.ci/travis.sh run-command-after-success
-  - ./.ci/travis.sh deploy-snapshot
-  - sleep 5s
+    # YAML Lint
+    - name: "Yamllint"
+      language: python
+      before_install:
+        - sudo apt update
+        - sudo apt install -y yamllint
+      script:
+        - yamllint -f parsable -c config/yamllint.yaml .
+
+    # Git validation
+    - name: "git-no-merge-commits"
+      script:
+        - ./.ci/validation.sh git-no-merge-commits
+
+    - name: "git-check-pull-number"
+      script:
+        - ./.ci/validation.sh git-check-pull-number
